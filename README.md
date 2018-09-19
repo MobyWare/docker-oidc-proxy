@@ -1,91 +1,51 @@
-# evry/oidc-proxy [![Image Layers](https://images.microbadger.com/badges/image/evry/oidc-proxy.svg)](https://microbadger.com/#/images/evry/oidc-proxy)
+# Goal
+I was looking for an simple but effective way to secure a suite of RESTful API written in different languages. I wanted the security to be based in OIDC and to allow flexible routing to the back-end APIs. I looked into:
 
-Docker Image for OpenID Connect proxy authentication. Useful for putting
-services behind Keycloak and other OpenID Connect authentication.
+1. Open Resty with lua_oidc plugin
+2. AWS API Gateway
+3. AWS Application Load Balancers
 
-This is Image used Nginx for proxying request and OpenResty with the
-`lua-resty-openidc` library to handle OpenID Connect authentication.
+I decided to go with the first option because it supported my two main requirements and was deployable on-premise and in the cloud do to container support. I forked from [Evry's repo](https://github.com/evry/docker-oidc-proxy) (i.e. see ref 2). 
 
-!["Docker OIDC Proxy overview"](https://raw.githubusercontent.com/evry/docker-oidc-proxy/master/assets/overview.png "Docker OIDC Proxy overview")
+# Set up
 
-## Supported tags and respective Dockerfile links
+## Docker Compose
 
-* [`latest`, `v1.2.0` (*Dockerfile*)](https://github.com/evry/docker-oidc-proxy/blob/master/Dockerfile)
+There are two compose files `docker-compose` builds from this repo. `docker-compose-all` uses a pre-built proxy image.
 
-## How to use this image
+### Pre-requisites
+You need to run the KeyCloak server the first time and login to set up the OIDC client. Before all that you need to create a .env file and create environment variables settings for four environment variables needed:
+* KEYCLOAK_USER - user name for keycloak Admin console
+* KEYCLOAK_PASSWORD - password for keycloak Admin console
+* PROXY_CLIENT_SECRET - Client ID that you'll get from Keycloak ID server. See steps below
+* PROXY_SESSION_SECRET - Random hash. Use anything.
 
-This proxy is controlled through environment variables, so there is no need to
-mess with any configuration files unless you want to of course. The following
-environment variables is used in this image:
+Follow steps below to set up client and get value for `PROXY_CLIENT_SECRET`.
 
-* `OID_SESSION_SECRET`: secret value for cookie sessions
-* `OID_SESSION_CHECK_SSI`: check SSI or not (`on` or `off`)
-* `OID_SESSION_NAME`: cookie session name
+__*Steps*__
 
-* `OID_REDIRECT_PATH`: Redirect path after authentication
-* `OID_DISCOVERY`: OpenID provider well-known discovery URL
-* `OID_CLIENT_ID`: OpenID Client ID
-* `OID_CLIENT_SECRET`: OpenID Client Secret
-* `OIDC_AUTH_METHOD`: OpenID Connect authentication method (`client_secret_basic` or `client_secret_post`)
-* `OIDC_RENEW_ACCESS_TOKEN_ON_EXPIERY`: Enable silent renew of access token (`true` or `false`)
+1. Run `docker-compose -f docker-compose-all.yml up -d`.
+2. Navigate to `http://localhost:8080/auth` and click on Admin Console link
+3. Log in using the `KEYCLOAK_PASSWORD` and `KEYCLOAK_PASSWORD` values from the .env you set up
+4. Configure the client. See ref 1 and image below. Ensure Client ID is `proxy` and Access Type is `confidential`
+5. Navigate to Credentials tab and copy the value in textbox labeled `secret`.
+6. Set `PROXY_CLIENT_SECRET` value in .env to the value of `secret`.
+7. Shutdown containers using `docker-compose -f docker-compose-all.yml down`
 
-* `PROXY_HOST`: Host name of the service to proxy
-* `PROXY_PORT`: Port of the service to proxy
-* `PROXY_PROTOCOL`: Protofol to the service to proxy (`http` or `https`)
+### Execute Compose
+If you've already done the prerequisites you can use the application by starting up compose with the follow steps. These steps will work until you purge your docker volumes, after which time you will need to redo the Keycloak set up.
 
-```
-docker run \
-  -e OID_DISCOVERY=https://my-auth-server/auth \
-  -e OID_CLIENT_ID=my-client \
-  -e OID_CLIENT_SECRET=my-secret \
-  -e PROXY_HOST=my-service \
-  -e PROXY_PORT=80 \
-  -e PROXY_PROTOCOL=http \
-  -p 80:80 \
-  evry/oidc-proxy
-```
+![Setting up OIDC Client](assets/keycloak_oidc_client.png "Setting up OIDC Client")
 
-## License
+1. Run `docker-compose -f docker-compose-all.yml up -d`
+2. Navigate browser to `http://localhost:5678`
+3. Enter credentials from pre-requisite into the prompt, after which you should see a simple site with words `Protected by MLI Proxy`.
 
-This Docker image is licensed under the [MIT License](https://github.com/evry/docker-oidc-proxy/blob/master/LICENSE).
 
-Software contained in this image is licensed under the following:
+# Known issues
+Docker build may fail on Windows with main compose file with '.. unknown file or directory ..' error. Use `dos2nix` utility to convert the endings on `bootstrap.sh` file.
 
-* docker-openresty: [BSD 2-clause "Simplified" License](https://github.com/openresty/docker-openresty/blob/master/COPYRIGHT)
-* lua-resty-http: [BSD 2-clause "Simplified" License](https://github.com/pintsized/lua-resty-http/blob/master/LICENSE)
-* lua-resty-jwt: [Apache License 2.0](https://github.com/cdbattags/lua-resty-jwt/blob/master/LICENSE.txt)
-* lua-resty-openidc: [Apache License 2.0](https://github.com/pingidentity/lua-resty-openidc/blob/master/LICENSE.txt)
-* lua-resty-session: [BSD 2-clause "Simplified" License](https://github.com/bungle/lua-resty-session/blob/master/LICENSE)
-* lua-resty-hmac: [BSD 2-clause "Simplified" License](https://github.com/jkeys089/lua-resty-hmac/#copyright-and-license)
-
-## Supported Docker versions
-
-This image is officially supported on Docker version 1.12.
-
-Support for older versions (down to 1.0) is provided on a best-effort basis.
-
-## User Feedback
-
-### Documentation
-
-* [Docker](http://docs.docker.com)
-* [nginx](http://nginx.org/en/docs/)
-* [OpenResty](http://openresty.org/)
-* [lua-resty-openidc](https://github.com/pingidentity/lua-resty-openidc#readme)
-
-### Issues
-
-If you have any problems with or questions about this image, please contact us
-through a [GitHub issue](https://github.com/evry/docker-oidc-proxy/issues).
-
-### Contributing
-
-You are invited to contribute new features, fixes, or updates, large or small;
-we are always thrilled to receive pull requests, and do our best to process them
-as fast as we can.
-
-Before you start to code, we recommend discussing your plans through a [GitHub
-issue](https://github.com/evry/docker-oidc-proxy/issues), especially for more
-ambitious contributions. This gives other contributors a chance to point you in
-the right direction, give you feedback on your design, and help you find out if
-someone else is working on the same thing.
+# References
+1. [Creating an OIDC client in Keycloak](https://www.keycloak.org/docs/3.0/server_admin/topics/clients/client-oidc.html)
+2. [docker-oidc-proxy Repo](https://github.com/evry/docker-oidc-proxy)
+3. [Original README.md](README_orig.md)
