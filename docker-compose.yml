@@ -1,0 +1,38 @@
+version: '3.3'
+
+services:
+  echo:
+    image: hashicorp/http-echo:0.2.3
+    command: -text="Protected by MLI Proxy"
+    network_mode: service:proxy
+
+  proxy:
+    build: .
+    ports:
+      - 8088:80
+      - 8080:8080 # keycloak
+      - 5678:5678 # echo
+    environment:
+      - OID_SESSION_SECRET=${PROXY_SESSION_SECRET}
+      - OID_SESSION_CHECK_SSI=off
+      - OID_SESSION_NAME=oidc_auth
+      - OID_REDIRECT_PATH=/redirect_uri
+      - OID_DISCOVERY=http://localhost:8080/auth/realms/master/.well-known/openid-configuration
+      - OID_CLIENT_SECRET=${PROXY_CLIENT_SECRET}
+      - OID_CLIENT_ID=proxy
+      - PROXY_HOST=localhost
+      - PROXY_PORT=5678
+      - PROXY_PROTOCOL=http
+    env_file: 
+      - .env
+
+  keycloak:
+    image: jboss/keycloak
+    env_file: 
+      - .env
+    volumes: 
+      - keycloak_data:/opt/jboss/keycloak/standalone/data
+    network_mode: service:proxy
+
+volumes: 
+  keycloak_data:

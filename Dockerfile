@@ -25,7 +25,7 @@ RUN \
  mkdir -p /usr/local/openresty/nginx/conf/hostsites/ && \
  true
 
-COPY bootstrap.sh /usr/local/openresty/bootstrap.sh
-COPY nginx /usr/local/openresty/nginx/
+COPY ./bootstrap.sh /usr/local/openresty/bootstrap.sh
+COPY ./nginx /usr/local/openresty/nginx/
 
 ENTRYPOINT ["/usr/local/openresty/bootstrap.sh"]
